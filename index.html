@@ -1,0 +1,360 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>File Detection Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one 16:9 slide in the offsite deck's light theme. Vendors run across, capabilities down.
+   Rubrik cells that have a planned feature carry a switch; the planned text sits in the same grid
+   cell as today's value, so flipping a switch never moves anything. */
+:root{
+  color-scheme:light;
+  --page:#e7eaed; --slide:#ffffff; --ink:#14191f; --ink-2:#47505a; --muted:#7a838c;
+  --rule:#dde2e6; --wash:#f2f5f7; --accent:#1d4f6e;
+  --plan-bg:#e6f0f6; --plan-edge:#7fa9c4;
+  --ok-fg:#0b6b0b; --ok-bg:#e5f3e5;
+  --above-fg:#6b4e00; --above-bg:#faf0d6;
+  --none-fg:#565c63; --none-bg:#eceef0;
+  --ghost:#aab2b9; --track:#b9c1c8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);line-height:1.4}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:20px;padding-block:24px 48px}
+.slide{background:var(--slide);aspect-ratio:16/9;container-type:inline-size;border-radius:4px;box-shadow:0 1px 3px rgba(20,25,31,.12);display:flex;flex-direction:column;overflow:hidden}
+.inner{flex:1;display:flex;flex-direction:column;gap:.6cqw;padding:1.6cqw 3cqw .4cqw;font-size:.97cqw;min-height:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:2cqw}
+.kicker{font-family:var(--mono);font-size:.78em;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+h1{margin:.1em 0 0;font-size:1.8em;font-weight:600;line-height:1.15;text-wrap:balance}
+.lede{margin:.3em 0 0;color:var(--ink-2);font-size:1em;max-width:115ch}
+.foot{display:flex;justify-content:space-between;gap:1em;padding:0 3cqw .9cqw;font-size:.9cqw;color:var(--muted);font-family:var(--mono)}
+
+/* switches */
+.sw{position:relative;display:inline-flex;align-items:center;gap:.5em;cursor:pointer;font-size:.9em;color:var(--ink-2);user-select:none}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.track{position:relative;flex:none;width:2.5em;height:1.4em;border-radius:1em;background:var(--track);transition:background .15s}
+.track::after{content:"";position:absolute;top:.15em;left:.15em;width:1.1em;height:1.1em;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(20,25,31,.35);transition:transform .15s}
+.sw input:checked + .track{background:var(--accent)}
+.sw input:checked + .track::after{transform:translateX(1.1em)}
+.sw input:indeterminate + .track{background:#6b92ab}
+.sw input:indeterminate + .track::after{transform:translateX(.55em)}
+.sw input:focus-visible + .track{outline:2px solid var(--accent);outline-offset:2px}
+.sw.master{font-size:1em;font-weight:500;color:var(--ink);padding:.55em .8em;border:1px solid var(--rule);border-radius:.5em;background:var(--wash);white-space:nowrap}
+.sw.cellsw{position:absolute;top:.5em;right:.6em;font-size:.88em;z-index:2}
+
+/* matrix */
+.grid-wrap{flex:1;min-height:0}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th,td{text-align:left;vertical-align:top;padding:.26em .75em;border-bottom:1px solid var(--rule)}
+thead th{font-family:var(--mono);font-size:.82em;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1.5px solid var(--ink-2);padding-block:.45em}
+thead th.vendor{font-family:var(--sans);font-size:1.25em;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0}
+thead th.rubrik{border-top:3px solid var(--accent)}
+tbody th{font-weight:600;font-size:1em}
+tbody th .sub{display:block;font-weight:400;font-size:.82em;color:var(--muted);margin-top:.15em}
+td.rubrik{background:var(--wash)}
+td{position:relative}
+.val{font-weight:600;font-size:1.1em}
+.dim{color:var(--ghost);font-weight:500}
+.chip{display:inline-block;font-size:.88em;line-height:1.3;padding:.08em .55em;border-radius:3px;white-space:nowrap;font-weight:500}
+.ok{color:var(--ok-fg);background:var(--ok-bg)}
+.above{color:var(--above-fg);background:var(--above-bg)}
+.none{color:var(--none-fg);background:var(--none-bg)}
+
+/* planned-feature stacking */
+.stack{display:grid}
+.stack > *{grid-area:1/1;min-width:0}
+.plan{visibility:hidden;opacity:0;transition:opacity .15s}
+td.on .now{visibility:hidden;opacity:0}
+td.on .plan{visibility:visible;opacity:1}
+td.toggle{transition:background .15s}
+td.toggle.on{background:var(--plan-bg);box-shadow:inset 0 0 0 1px var(--plan-edge)}
+.ptag{display:inline-block;font-family:var(--mono);font-size:.74em;letter-spacing:.07em;text-transform:uppercase;background:var(--accent);color:#fff;border-radius:2px;padding:.12em .5em;margin-right:.6em}
+.today{font-size:.86em;color:var(--ink-2)}
+.plan p{margin:.3em 0 0}
+.plan p + p{margin-top:.15em}
+.plan p.f::before{content:"+ ";color:var(--accent);font-weight:600}
+
+/* size bars */
+.size{display:flex;align-items:center;gap:.7em}
+.bar{flex:1;max-width:9em;height:.55em;background:var(--rule);border-radius:1em;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:1em}
+
+/* method tags */
+.tags{display:flex;flex-wrap:wrap;gap:.3em .35em}
+.tag{font-size:.9em;padding:.12em .55em;border-radius:3px;font-weight:500;border:1px solid transparent}
+.tag.on{background:#dfe9f0;color:var(--accent);border-color:#c3d6e2}
+.tag.off{color:var(--ghost);border:1px dashed #c9cfd5;font-weight:400}
+
+/* text cells */
+.kv{display:grid;grid-template-columns:4.6em 1fr;gap:.6em;align-items:baseline}
+.kv + .kv{margin-top:.3em}
+.fl{float:right;width:6.2em;height:1.3em}
+.kv b{font-family:var(--mono);font-size:.74em;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.chal{font-weight:600;font-size:1.05em}
+.resp{margin-top:.3em;padding-top:.3em;border-top:1px dotted var(--rule)}
+.resp b{display:block;font-family:var(--mono);font-size:.74em;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-bottom:.15em}
+.resp ul{margin:0;padding-left:1.05em;display:flex;flex-direction:column;gap:.2em}
+.resp li::marker{color:var(--accent)}
+
+/* readiness meter */
+:root{--bonus:#1f7a5c;--bonus-wash:#e4efe9}
+.meter{display:grid;grid-template-columns:13% 1fr;align-items:end}
+.m-id{padding:0 .75em 0 .75em;line-height:1.2}
+.m-t{font-weight:600;font-size:.95em}
+.m-score{margin-top:.1em;font-size:.88em;color:var(--ink-2)}
+.m-score b{font-size:1.5em;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;margin-right:.2em}
+.m-right{display:flex;flex-direction:column;gap:.3em}
+.m-caps{display:grid;grid-template-columns:2fr 1fr;gap:.25em;font-family:var(--mono);font-size:.7em;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.m-caps span{padding-top:.25em}
+.m-caps .req{border-top:2px solid var(--accent)}
+.m-caps .bon{border-top:2px dashed var(--bonus)}
+.m-bar{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:.25em}
+.seg{position:relative;height:1.9em;border-radius:.3em;background:var(--rule);overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:.5em;padding-inline:.7em;font-size:.88em;font-weight:500;color:var(--ink-2);transition:color .2s}
+.seg.bonus{background:repeating-linear-gradient(135deg,var(--bonus-wash) 0 .5em,#f2f7f4 .5em 1em)}
+.seg i{position:absolute;inset:0;width:0;background:var(--accent);transition:width .35s ease}
+.seg.bonus i{background:var(--bonus)}
+.seg.full{color:#fff}
+.seg.full i{width:100%}
+.seg span,.seg em{position:relative;z-index:1;white-space:nowrap;font-style:normal}
+.seg em{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* tooltips */
+.info{display:inline-grid;place-items:center;width:1.35em;height:1.35em;margin-left:.5em;padding:0;border-radius:50%;border:1px solid var(--accent);background:transparent;color:var(--accent);font:600 .8em/1 var(--mono);cursor:help;vertical-align:middle}
+.info:hover,.info[aria-expanded="true"]{background:var(--accent);color:#fff}
+.info:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tip{position:absolute;left:.75em;top:calc(100% - .35em);z-index:5;width:max-content;max-width:17em;padding:.55em .75em;border-radius:.4em;background:var(--ink);color:#fff;font-size:.92em;line-height:1.35;box-shadow:0 4px 12px rgba(20,25,31,.25);visibility:hidden;opacity:0;transition:opacity .12s;pointer-events:none}
+.tip.right{left:auto;right:.75em}
+.info:hover + .tip,.info:focus-visible + .tip,.tip.open{visibility:visible;opacity:1}
+
+@media (max-width:820px){
+  .slide{aspect-ratio:auto}
+  .inner{font-size:13px;padding:18px 16px 10px;gap:14px}
+  .top{flex-direction:column}
+  .foot{font-size:11px;padding:0 16px 12px}
+  .grid-wrap{overflow-x:auto}
+  table{min-width:760px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <section class="slide" aria-label="File-based threat detection comparison">
+    <div class="inner">
+      <div class="top">
+        <div>
+          <div class="kicker">Orion · Competitive comparison</div>
+          <h1>File-Based Threat Detection: Rubrik, Commvault and Cohesity</h1>
+          <p class="lede">Rubrik cells with a switch have a planned feature. Flip a switch to see it. Every planned feature is future work and none has shipped.</p>
+        </div>
+        <label class="sw master" for="master"><input id="master" type="checkbox" role="switch"><span class="track"></span><span>Show all planned features</span></label>
+      </div>
+
+      <div class="grid-wrap">
+        <table>
+          <colgroup><col style="width:13%"><col style="width:29%"><col style="width:29%"><col style="width:29%"></colgroup>
+          <thead>
+            <tr><th scope="col">Capability</th><th scope="col" class="vendor rubrik">Rubrik</th><th scope="col" class="vendor">Commvault</th><th scope="col" class="vendor">Cohesity</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">File coverage</th>
+              <td class="rubrik toggle">
+                <div class="stack">
+                  <div class="now"><span class="val">Variable</span></div>
+                  <div class="plan"><span class="ptag">Planned</span><span class="today">Today: Variable</span>
+                    <p>Mega Dedupe prioritization somewhat offsets the increased cost of SmartScan (Enhanced Mode).</p></div>
+                </div>
+                <label class="sw cellsw"><input id="sw-coverage" type="checkbox" role="switch" aria-label="Show planned feature for Rubrik file coverage"><span class="track"></span><span>Planned</span></label>
+              </td>
+              <td><span class="val">All</span></td>
+              <td><span class="val">Most</span></td>
+            </tr>
+            <tr>
+              <th scope="row">File size limit<span class="sub">Bars to scale, 200 MB is full</span></th>
+              <td class="rubrik toggle">
+                <div class="stack">
+                  <div class="now"><div class="size"><span class="val">15 MB</span><span class="bar" aria-hidden="true"><i style="width:7.5%"></i></span></div></div>
+                  <div class="plan"><span class="ptag">Planned</span><span class="today">Today: 15 MB</span>
+                    <p class="f">UX update for Threat Hunt</p>
+                    <p class="f">Threat Monitoring enhancement: TBD</p></div>
+                </div>
+                <label class="sw cellsw"><input id="sw-size" type="checkbox" role="switch" aria-label="Show planned features for Rubrik file size limit"><span class="track"></span><span>Planned</span></label>
+              </td>
+              <td><div class="size"><span class="val">100 MB</span><span class="bar" aria-hidden="true"><i style="width:50%"></i></span></div></td>
+              <td><div class="size"><span class="val">200 MB</span><span class="bar" aria-hidden="true"><i style="width:100%"></i></span></div></td>
+            </tr>
+            <tr>
+              <th scope="row">Scale rating</th>
+              <td class="rubrik"><span class="chip ok">High</span><button class="info" type="button" aria-label="About the Rubrik scale rating" aria-expanded="false" aria-controls="tip-rubrik">i</button><span class="tip" id="tip-rubrik" role="tooltip">Auto-scale via pre-set scan settings.</span></td>
+              <td><span class="chip above">Medium</span><button class="info" type="button" aria-label="About the Commvault scale rating" aria-expanded="false" aria-controls="tip-commvault">i</button><span class="tip" id="tip-commvault" role="tooltip">Jobs can be scheduled, auto-scale for small-medium customers.</span></td>
+              <td><span class="chip above">Medium</span><button class="info" type="button" aria-label="About the Cohesity scale rating" aria-expanded="false" aria-controls="tip-cohesity">i</button><span class="tip right" id="tip-cohesity" role="tooltip">Jobs can be scheduled.</span></td>
+            </tr>
+            <tr>
+              <th scope="row">0-day methods<span class="sub">Catching files with no known signature</span></th>
+              <td class="rubrik toggle">
+                <div class="stack">
+                  <div class="now"><div class="tags"><span class="tag on">YARA rules</span><span class="tag off" title="Not offered">Heuristics</span><span class="tag off" title="Not offered">ML</span></div></div>
+                  <div class="plan"><span class="ptag">Planned</span><span class="today">Today: YARA rules</span>
+                    <p class="f">Fuzzy hash and/or user and system heuristics</p></div>
+                </div>
+                <label class="sw cellsw"><input id="sw-zeroday" type="checkbox" role="switch" aria-label="Show planned feature for Rubrik 0-day methods"><span class="track"></span><span>Planned</span></label>
+              </td>
+              <td><div class="tags"><span class="tag on">YARA rules</span><span class="tag on">Heuristics</span><span class="tag on">ML</span></div></td>
+              <td><div class="tags"><span class="tag on">YARA rules</span><span class="tag on">Heuristics</span><span class="tag off" title="Not offered">ML</span></div></td>
+            </tr>
+            <tr>
+              <th scope="row">Emulation</th>
+              <td class="rubrik toggle">
+                <div class="stack">
+                  <div class="now"><span class="chip none">None</span></div>
+                  <div class="plan"><span class="ptag">Planned</span><span class="today">Today: None</span>
+                    <p>Discovery ongoing. In-house, OEM and customer-provided options available.</p></div>
+                </div>
+                <label class="sw cellsw"><input id="sw-emulation" type="checkbox" role="switch" aria-label="Show planned feature for Rubrik emulation"><span class="track"></span><span>Planned</span></label>
+              </td>
+              <td><span class="val">GTI</span> <span class="chip above">Beta</span></td>
+              <td><span class="val">GTI</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Sales complications</th>
+              <td class="rubrik toggle">
+                <div class="stack">
+                  <div class="now">
+                    <div class="kv"><b>Product</b><span><i class="fl"></i>Simple for Threat Monitoring, hard for Threat Hunting: no sizing, limited performance. Inability to size creates CSAT issues.</span></div>
+                    <div class="kv"><b>Metrics</b><span>Turbo only</span></div>
+                  </div>
+                  <div class="plan"><span class="ptag">Planned</span><span class="today">Today: no sizing, metrics Turbo only</span>
+                    <p class="f">Create/Update sizing tools &amp; expand product capability metrics</p></div>
+                </div>
+                <label class="sw cellsw"><input id="sw-sales" type="checkbox" role="switch" aria-label="Show planned improvement for Rubrik sales complications"><span class="track"></span><span>Planned</span></label>
+              </td>
+              <td>
+                <div class="kv"><b>Product</b><span>Separate products for push-button vs. self-service</span></div>
+                <div class="kv"><b>Metrics</b><span>Limited, likely to vary</span></div>
+              </td>
+              <td>
+                <div class="kv"><b>Product</b><span>Separate products for push-button vs. self-service. Prioritizes metrics and costs.</span></div>
+                <div class="kv"><b>Metrics</b><span>Restoration and Threat Hunt claims</span></div>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Primary sales challenge</th>
+              <td class="rubrik"><span class="val dim">n/a</span></td>
+              <td>
+                <div class="chal">Technical capability</div>
+                <div class="resp"><b>How we address it</b><ul>
+                  <li>Bring Threat Monitoring and Threat Hunting more on par, add Windows Registry for differentiation.</li>
+                  <li>Improve ability to process feeds, differentiate with Registry and Identity heuristics.</li>
+                </ul></div>
+              </td>
+              <td>
+                <div class="chal">Just as good but cheaper</div>
+                <div class="resp"><b>How we address it</b><ul>
+                  <li>Differentiate with Registry, prioritize sizing and competitive metrics.</li>
+                </ul></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="meter" id="meter" role="meter" aria-label="Readiness to process third-party detections" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0" aria-valuetext="0 points">
+        <div class="m-id">
+          <div class="m-t">Third-party detection readiness</div>
+          <div class="m-score"><b id="score">0</b><span id="score-note">of 100 required</span></div>
+        </div>
+        <div class="m-right">
+          <div class="m-caps"><span class="req">Required for 100%</span><span class="bon">Bonus round</span></div>
+          <div class="m-bar">
+            <div class="seg" data-seg="coverage"><i></i><span>File coverage</span><em>+50</em></div>
+            <div class="seg" data-seg="size"><i></i><span>File size limit</span><em>+50</em></div>
+            <div class="seg bonus" data-seg="zeroday"><i></i><span>0-day methods</span><em>+25</em></div>
+            <div class="seg bonus" data-seg="emulation"><i></i><span>Emulation</span><em>+25</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Source: Orion competitive comparison sheet · Planned features are future work</span><span>Draft</span></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var cells = Array.prototype.slice.call(document.querySelectorAll('td.toggle'));
+  var master = document.getElementById('master');
+
+  function setCell(td, on) {
+    td.classList.toggle('on', on);
+    td.querySelector('input').checked = on;
+  }
+  var SEG_BY_SWITCH = { 'sw-coverage': 'coverage', 'sw-size': 'size', 'sw-zeroday': 'zeroday', 'sw-emulation': 'emulation' };
+  var PTS = { coverage: 50, size: 50, zeroday: 25, emulation: 25 };
+  var meter = document.getElementById('meter');
+  var scoreEl = document.getElementById('score');
+  var noteEl = document.getElementById('score-note');
+
+  function updateMeter() {
+    var total = 0;
+    cells.forEach(function (td) {
+      var key = SEG_BY_SWITCH[td.querySelector('input').id];
+      if (!key) return;
+      var on = td.classList.contains('on');
+      meter.querySelector('[data-seg="' + key + '"]').classList.toggle('full', on);
+      if (on) total += PTS[key];
+    });
+    scoreEl.textContent = total;
+    noteEl.textContent = total < 100 ? 'of 100 required' : total === 100 ? '100% reached' : '100% + ' + (total - 100) + ' bonus';
+    meter.setAttribute('aria-valuenow', String(total));
+    meter.setAttribute('aria-valuetext', total + ' points');
+  }
+  function syncMaster() {
+    var n = cells.filter(function (c) { return c.classList.contains('on'); }).length;
+    master.checked = n === cells.length;
+    master.indeterminate = n > 0 && n < cells.length;
+    updateMeter();
+  }
+  cells.forEach(function (td) {
+    td.querySelector('input').addEventListener('change', function (e) {
+      setCell(td, e.target.checked);
+      syncMaster();
+    });
+  });
+  master.addEventListener('change', function () {
+    cells.forEach(function (td) { setCell(td, master.checked); });
+    master.indeterminate = false;
+    updateMeter();
+  });
+  if (/[?&]planned\b/.test(location.search)) {
+    master.checked = true;
+    cells.forEach(function (td) { setCell(td, true); });
+  }
+
+  updateMeter();
+
+  var infos = Array.prototype.slice.call(document.querySelectorAll('.info'));
+  function closeTips(except) {
+    infos.forEach(function (b) {
+      if (b === except) return;
+      b.setAttribute('aria-expanded', 'false');
+      document.getElementById(b.getAttribute('aria-controls')).classList.remove('open');
+    });
+  }
+  infos.forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var tip = document.getElementById(b.getAttribute('aria-controls'));
+      var open = !tip.classList.contains('open');
+      closeTips(b);
+      tip.classList.toggle('open', open);
+      b.setAttribute('aria-expanded', String(open));
+    });
+  });
+  document.addEventListener('click', function () { closeTips(null); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTips(null); });
+})();
+</script>
